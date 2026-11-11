@@ -521,7 +521,10 @@ FRESH: tuple[Story, ...] = (
         "fresh",
         (
             Beat(
-                ("Sable can be located by checking the greenhouse.", "The cork belongs with the pail."),
+                (
+                    "Sable can be located by checking the greenhouse.",
+                    "The cork belongs with the pail.",
+                ),
                 _f(("sable", "in", "greenhouse"), ("cork", "in", "pail")),
                 "Cork: housed in what, roughly?",
                 entity="cork",
@@ -548,7 +551,11 @@ FRESH: tuple[Story, ...] = (
         (
             Beat(
                 ("Check the jar if you need the thimble; the jar stays by Corin in the pantry.",),
-                _f(("thimble", "in", "jar"), ("jar", "held_by", "corin"), ("corin", "in", "pantry")),
+                _f(
+                    ("thimble", "in", "jar"),
+                    ("jar", "held_by", "corin"),
+                    ("corin", "in", "pantry"),
+                ),
                 "The thimble sits with whom?",
                 entity="thimble",
             ),

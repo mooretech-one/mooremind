@@ -14,11 +14,11 @@
     "misses": [],
     "n": 144,
     "n_correct": 144,
+    "retention_accuracy": 1.0,
+    "seed_consistency": 1.0,
     "sentences": 348,
     "sentences_unparsed": 0,
-    "unparsed_rate": 0.0,
-    "retention_accuracy": 1.0,
-    "seed_consistency": 1.0
+    "unparsed_rate": 0.0
   },
   "text-fade": {
     "accounting": {
@@ -192,10 +192,10 @@
     ],
     "n": 144,
     "n_correct": 126,
+    "retention_accuracy": 0.3333333333333333,
+    "seed_consistency": 0.875,
     "sentences": 348,
     "sentences_unparsed": 0,
-    "unparsed_rate": 0.0,
-    "retention_accuracy": 0.3333333333333333,
-    "seed_consistency": 0.875
+    "unparsed_rate": 0.0
   }
 }

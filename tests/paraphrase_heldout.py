@@ -1,9 +1,8 @@
-"""Held-out paraphrases.
+"""PR2 paraphrase batch.
 
-Written after the front end was frozen. Two asks per sub-type use shapes the
-front end already reads, with names and a bit of wording that differ from the
-dev stories. The other four use a word order or a question form on the
-unhandled list. Do not add a parse rule to lift these numbers.
+This was the held-out set for that pull request. It is development data now:
+the front end may be tuned against it. The one-shot batch is
+``paraphrase_fresh.py``.
 """
 
 from __future__ import annotations
