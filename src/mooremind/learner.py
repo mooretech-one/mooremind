@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from mooremind.english import parse_question, parse_sentence
+from mooremind.english import Memory, parse_question, read_sentence
 from mooremind.query import Query, interpret
 from mooremind.store import ThoughtStore
 from mooremind.weights import FADE, KEEP, WeightPolicy
@@ -157,29 +157,46 @@ class TextMooreMind(MooreMind):
         self.unparsed_texts: list[str] = []
         self.session_unparsed: list[str] = []
         self._episode_unparsed: list[str] = []
+        self._episode_pronouns: list[str] = []
         self.events: list[dict[str, Any]] = []
 
     def reset(self) -> None:
         super().reset()
         self.session_unparsed = []
         self._episode_unparsed = []
+        self._episode_pronouns = []
 
     def teach(self, assertions: list[Any]) -> None:
         parsed: list[dict[str, object]] = []
         episode_unparsed: list[str] = []
+        episode_pronouns: list[str] = []
+        memory = Memory()
         for assertion in assertions:
             text = _surface(assertion)
             self.sentences += 1
-            fact = parse_sentence(text) if text else None
-            if fact is None:
+            read = read_sentence(text, memory) if text else None
+            if read is None or (not read.facts):
                 self.sentences_unparsed += 1
                 episode_unparsed.append(text)
                 self.session_unparsed.append(text)
                 self.unparsed_texts.append(text)
+                if read is not None:
+                    episode_pronouns.extend(f"{left}->{right}" for left, right in read.pronouns)
+            elif read.unparsed:
+                # Some clauses were read and some were refused. Keep the
+                # facts, and still count the sentence as unread.
+                self.sentences_unparsed += 1
+                episode_unparsed.append(text)
+                self.session_unparsed.append(text)
+                self.unparsed_texts.append(text)
+                parsed.extend(read.facts)
+                episode_pronouns.extend(f"{left}->{right}" for left, right in read.pronouns)
             else:
                 self.sentences_parsed += 1
-                parsed.append(fact)
+                parsed.extend(read.facts)
+                episode_pronouns.extend(f"{left}->{right}" for left, right in read.pronouns)
         self._episode_unparsed = episode_unparsed
+        self._episode_pronouns = episode_pronouns
         # An empty list is still an episode, so decay still runs.
         self.store.teach(parsed)
 
@@ -266,6 +283,7 @@ class TextMooreMind(MooreMind):
             "id": _item_id(item),
             "outcome": outcome,
             "phrase": phrase,
+            "pronouns": list(self._episode_pronouns),
             "question": question,
             "question_recognised": recognised,
             "reply": reply,
@@ -298,10 +316,12 @@ class TextFadeLearner(TextMooreMind):
 def classify_miss(event: dict[str, Any]) -> str:
     """One label for a wrong reply on the text path.
 
-    Order: a sentence this episode did not read, then a question form we do
-    not know, then a reply that came from the store and was still wrong or
-    empty because the fact is missing, then a bare fallback.
+    Order: a pronoun was substituted, then an unread sentence, then a
+    question form we do not know, then a reply that came from the store and
+    was still wrong or empty because the fact is missing, then a bare fallback.
     """
+    if event.get("pronouns"):
+        return "wrong_pronoun"
     if event.get("episode_unparsed"):
         return "parse_failure"
     if not event.get("question_recognised"):

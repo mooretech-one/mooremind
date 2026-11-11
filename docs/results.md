@@ -61,36 +61,42 @@ The public learn English is twenty-five sentence skeletons. Covering them is why
 
 ### Failure classes
 
-A miss is labelled in this order: a teach sentence in that episode was not read (`parse_failure`); the question form was not recognised (`unrecognised_question`); the question was read and the reply was still wrong or empty because of the store, including decay (`store_or_decay`); otherwise `fallback`.
+A miss is labelled in this order: a pronoun was substituted in that episode (`wrong_pronoun`); a teach sentence was not fully read (`parse_failure`); the question form was not recognised (`unrecognised_question`); the question was read and the reply was still wrong or empty because of the store, including decay (`store_or_decay`); otherwise `fallback`.
 
-| run | parse_failure | unrecognised_question | store_or_decay | fallback |
-| --- | ---: | ---: | ---: | ---: |
-| text-keep, 144 dev items | 0 | 0 | 0 | 0 |
-| text-fade, 144 dev items | 0 | 0 | 18 | 0 |
+| run | wrong_pronoun | parse_failure | unrecognised_question | store_or_decay | fallback |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| text-keep, 144 dev items | 0 | 0 | 0 | 0 | 0 |
+| text-fade, 144 dev items | 0 | 0 | 0 | 18 | 0 |
 
-Shapes the front end does not read: inverted order ("In the loft sits Nim"), a possessive, two facts in one sentence, "from the porch to the yard" as one sentence, a pronoun standing in for a name, and a question that does not start with where, which place, which container, who has, or colour.
+The widening did not move the 144. Unread sentences are still 0 of 348. The 18 fade misses are the same items as the structured fade run.
+
+Shapes still not read: a telegraphic list, a compressed biography ("Once in the shed, later the garden: that is Veda"), residence / tucking / hosting / "hands are on", a question with no where, which, who, whom, colour, color, or hue, and negation. A long subject that merely ends in "is <colour>" or "is a …" is accepted, which is an over-match, not a reading.
 
 ## Paraphrases written here
 
-These items are not MooreSense. Gold is the phrase the store produces from the structured facts shipped with each item. The development split is what the rules were allowed to grow on. The held-out split was written after the rules were frozen and was not used to add a rule. Development has 38 questions (refresh has 8, the others 6). Held-out has 6 per sub-type, 36 in all.
+These items are not MooreSense. Gold is the phrase the store produces from the structured facts shipped with each item.
+
+The original development file has 38 questions (refresh has 8, the others 6). The PR2 held-out file (36 questions, 6 per sub-type) is development data for this round: the grammar was allowed to move those scores. The fresh file (`tests/paraphrase_fresh.py`, 60 questions, 10 per sub-type) was committed before the grammar change, scored once, and not used to add a rule. That 0.000 is a disappointing one-shot result. It is reported as measured. After this pull request the fresh file is development data too.
 
 | split | preset | accuracy | one_shot | update | inheritance | composition | interference | refresh |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| development | text-keep | 1.000 (38/38) | 6/6 | 6/6 | 6/6 | 6/6 | 6/6 | 8/8 |
-| development | text-fade | 0.868 (33/38) | 6/6 | 6/6 | 6/6 | 5/6 | 4/6 | 6/8 |
-| held-out | text-keep | 0.389 (14/36) | 2/6 | 2/6 | 2/6 | 2/6 | 3/6 | 3/6 |
-| held-out | text-fade | 0.333 (12/36) | 2/6 | 2/6 | 2/6 | 2/6 | 2/6 | 2/6 |
+| development, first file | text-keep | 1.000 (38/38) | 6/6 | 6/6 | 6/6 | 6/6 | 6/6 | 8/8 |
+| development, first file | text-fade | 0.868 (33/38) | 6/6 | 6/6 | 6/6 | 5/6 | 4/6 | 6/8 |
+| development, PR2 held-out | text-keep | 0.889 (32/36) | 5/6 | 4/6 | 6/6 | 6/6 | 5/6 | 6/6 |
+| development, PR2 held-out | text-fade | 0.833 (30/36) | 5/6 | 4/6 | 6/6 | 6/6 | 4/6 | 5/6 |
+| one-shot fresh | text-keep | 0.000 (0/60) | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 |
+| one-shot fresh | text-fade | 0.000 (0/60) | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 |
 
-Development `fade` misses are the five marked long gaps: four `I don't know` replies and one composition chain that lost the room. All five are `store_or_decay`.
+PR2 per-sub-type counts above were recomputed with the widened grammar. The four keep misses there are two unrecognised questions ("Point to …") and two unread sentences (the telegraphic list, and the compressed biography). Fade adds the two long-gap store misses.
 
-Held-out misses:
+One-shot failure classes, both presets, because nothing in that file was readable enough for decay to matter:
 
-| preset | parse_failure | unrecognised_question | store_or_decay | fallback |
-| --- | ---: | ---: | ---: | ---: |
-| text-keep | 15 | 7 | 0 | 0 |
-| text-fade | 15 | 7 | 2 | 0 |
+| preset | wrong_pronoun | parse_failure | unrecognised_question | store_or_decay | fallback |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| text-keep | 0 | 58 | 1 | 0 | 1 |
+| text-fade | 0 | 58 | 1 | 0 | 1 |
 
-The two extra `fade` misses are the long gaps whose sentences the front end could read. One held-out composition episode was only partly read: "The pot contains the marble" matched, and "Holding that pot is Tess" did not, so the reply was "in the pot". That miss is a `parse_failure` because the episode was not fully read.
+The unrecognised question is "Shade attached to Lumen?". The fallback is "The thimble sits with whom?": the cue word is recognised, but the sentence was swallowed by the bare "is a" rule as a nonsense class membership, so the thimble was never stored. Fifty-eight sentences were refused outright. No rule was added after seeing this table.
 
 ## Frozen-model reference points
 

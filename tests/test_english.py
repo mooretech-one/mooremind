@@ -1,6 +1,6 @@
 """The sentence shapes the front end accepts, and the ones it refuses."""
 
-from mooremind.english import UNHANDLED, parse_question, parse_sentence
+from mooremind.english import UNHANDLED, parse_question, parse_sentence, read_sentence
 
 
 def _fact(text: str) -> dict[str, object]:
@@ -64,8 +64,26 @@ def test_classes_and_colours_and_a_refusal():
     plain = _fact("Nim is navy.")
     assert plain["target"] == "navy"
     assert parse_sentence("Remember this about Nim, please.") is None
-    assert parse_sentence("In the loft sits Nim.") is None
-    assert parse_sentence("Nim went from the porch to the yard.") is None
+    inverted = _fact("In the loft sits Nim.")
+    assert (inverted["source"], inverted["type"], inverted["target"]) == ("nim", "in", "loft")
+    moved = read_sentence("Nim went from the porch to the yard.")
+    assert moved.unparsed == []
+    assert [(item["source"], item["target"]) for item in moved.facts] == [
+        ("nim", "porch"),
+        ("nim", "yard"),
+    ]
+
+
+def test_coordination_possessive_and_a_pronoun():
+    colour = parse_sentence("Nim's colour is rust.")
+    assert colour is not None
+    assert (colour["source"], colour["type"], colour["target"]) == ("nim", "color", "rust")
+    read = read_sentence("Olive describes a brindle, and Tess is one.")
+    assert read.unparsed == []
+    assert ("one", "brindle") in read.pronouns
+    triples = {(item["source"], item["type"], item["target"]) for item in read.facts}
+    assert ("brindle", "color", "olive") in triples
+    assert ("tess", "is_a", "brindle") in triples
 
 
 def test_question_gate_refuses_a_form_it_does_not_know():
@@ -74,6 +92,9 @@ def test_question_gate_refuses_a_form_it_does_not_know():
     assert found is not None and found.kind == "where" and found.entity == "nim"
     earlier = parse_question("Where was Nim earlier?", names)
     assert earlier is not None and earlier.kind == "before"
-    assert parse_question("In which room do we find Nim?", names) is None
-    assert parse_question("Name the hue Nim wears.", names) is None
+    room = parse_question("In which room do we find Nim?", names)
+    assert room is not None and room.kind == "where" and room.entity == "nim"
+    hue = parse_question("Name the hue Nim wears.", names)
+    assert hue is not None and hue.kind == "color" and hue.entity == "nim"
+    assert parse_question("Point to Nim.", names) is None
     assert UNHANDLED

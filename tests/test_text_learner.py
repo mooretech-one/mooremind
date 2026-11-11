@@ -42,7 +42,7 @@ def test_text_path_learns_from_the_sentence_and_ignores_hidden_fields():
 
 def test_an_unknown_sentence_is_counted_and_does_not_guess():
     learner = TextKeepLearner()
-    learner.teach([_Sentence("In the loft sits Nim.")])
+    learner.teach([_Sentence("Please file Nim under miscellaneous.")])
     item = _Question(
         "Where is Nim?",
         [Choice("A", "in the loft"), Choice("B", FALLBACK)],
@@ -57,7 +57,7 @@ def test_an_unknown_question_form_falls_back_without_reading_choices_for_a_guess
     learner = TextKeepLearner()
     learner.teach([_Sentence("Nim is in the loft.")])
     item = _Question(
-        "In which room do we find Nim?",
+        "Point to Nim.",
         [Choice("A", "in the loft"), Choice("B", "in the yard")],
     )
     assert learner.answer(item) == FALLBACK

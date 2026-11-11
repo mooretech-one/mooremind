@@ -76,22 +76,27 @@ If the store produces a phrase, and a choice's text matches it ignoring case, th
 
 `KeepLearner` and `FadeLearner` still take structured assertions. `TextKeepLearner` and `TextFadeLearner` do not. MooreSense's external mode calls `teach` with assertion objects (`source`, `type`, `target`, `text`, `qualifiers`) and `answer` with the whole item. The text classes read `text` on each assertion, plus `question` and the choice text. They do not read `source`, `type`, `target`, `qualifiers`, `answer`, `world_state`, `trace`, `context`, or the item's `teach` list while answering. `item.id` is copied onto a trace line when `MOOREMIND_TRACE` is set. It is not used to choose the reply.
 
-`mooremind.english.parse_sentence` is a list of regular expressions. A match becomes one store fact. No match is a refusal: the sentence is counted, and it is not stored. The episode still counts, so `fade` still decays. A sentence that says "is in", "is inside", "stays", "sits", "stands", "begins", "was left", or "moves to" is stored as `in`. For a place with no further location, that phrase is the same as the harness's `at`. "Is held by", "is holding", and "carries" are `held_by`. "Contains" and "has … in it" put the thing inside the container. "Is a", "counts as", and "a kind is a kind" are class links. "Is <colour>" is a colour, and the colour has to be in a fixed list of ordinary colour words. Anything else after "is" is refused.
+`read_sentence` splits a sentence on "and", "but", and semicolons, rewrites a cleft ("it is X that Y") to "X Y", then tries one list of patterns. A clause that matches becomes one or more store facts. A clause that does not match is counted and skipped. Nothing is invented to fill the gap. The episode still counts, so `fade` still decays.
 
-Questions are gated. A question is accepted only when it starts with "where is/was/did/can", "which place", "which container", "who has" (or "who is holding"), or "what/which colour". Accepted questions then use the same cue list as the structured learner. A question that fails the gate is `I don't know`. It is not treated as "where now".
+The patterns cover location, containment, holding, a from-to move (the start is stored, then the end), class membership, colour, and "every kind is C except Name, who is D". Inverted order ("In the loft sits Nim", "Holding the pot is Tess") is the same relations with the place or the holder first. A possessive determiner is stripped to its head ("Nim's basket has the pebble" is the pebble in the basket). "Name's colour is C" is a colour fact. "Is in", "is inside", "stays", "sits", "stands", "begins", "was left", and "moves to" are stored as `in`. For a place with no further location, that phrase is the same as the harness's `at`. Colour words come from a fixed ordinary list. Anything else after a bare "is" is refused when it is not in that list.
 
-Shapes the front end will not read, on purpose:
+Pronouns bind inside one `teach` call and are dropped when that call returns. "he", "she", "it", "they", "him", "her", and "them" bind to the most recent named subject. "one" binds to the most recent class. "in it" is the container idiom, not a pronoun. A pronoun with no antecedent refuses the clause. It is not given a guessed name.
 
-- inverted order, such as "In the loft sits Nim"
-- a possessive, such as "Nim's spoon"
-- two facts joined in one sentence
-- a move told as "from the porch to the yard" in one sentence
-- a pronoun standing in for a name
-- a question that does not start with the forms above
+A question is accepted when it contains "where", "which", "who", "whom", "colour", "color", or "hue" anywhere, not only at the start. "hue" is read as colour. The cue list then picks where-now, a previous place, an ordinal, or a colour. Any other question is `I don't know`.
 
-Weights are the PR1 policies. This front end does not change them.
+Still refused:
 
-The public learn sentences are twenty-five skeletons. The grammar covers those skeletons, so a perfect score on that slice does not mean the front end reads English in general. The held-out paraphrases in `tests/paraphrase_heldout.py` use other word orders and other questions. They were written after the rules were frozen, and the rules were not edited to lift that score.
+- a telegraphic list ("First the kitchen, afterwards the hall, for Tess")
+- a compressed biography ("Once in the shed, later the garden: that is Veda")
+- residence, tucking, hosting, and "hands are on"
+- a question with none of the cue words above ("Point to Nim")
+- negation, and relative clauses other than "who is <colour>"
+
+The bare "is <colour>" rule will also accept a long subject that merely ends in a colour word. That over-match was left in place after the one-shot measurement.
+
+Weights are the original policies. This front end does not change them.
+
+The public learn sentences are twenty-five skeletons. The grammar covers those skeletons, so a perfect score on that slice does not mean the front end reads open English. `tests/paraphrase_heldout.py` was the previous held-out set and is development data now. `tests/paraphrase_fresh.py` is the one-shot batch: it was committed before this widening, scored once, and not used to add a rule. After this pull request it too is development data.
 
 ## What is ours, and what is only a claim in the book
 
