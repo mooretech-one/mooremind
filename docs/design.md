@@ -98,6 +98,20 @@ Weights are the original policies. This front end does not change them.
 
 The public learn sentences are twenty-five skeletons. The grammar covers those skeletons, so a perfect score on that slice does not mean the front end reads open English. `tests/paraphrase_heldout.py` was the previous held-out set and is development data now. `tests/paraphrase_fresh.py` is the one-shot batch: it was committed before this widening, scored once, and not used to add a rule. After this pull request it too is development data.
 
+## Language-model translator
+
+The rule front end does not generalise. The fresh 60-question batch scored 0.000. The store stays the memory: inheritance, exceptions, history, multi-hop recall, and decay. A small local model is only a translator. It does not answer the question itself on that path.
+
+`LlmKeepLearner` and `LlmFadeLearner` call an OpenAI-compatible chat endpoint with the standard library. The default base URL is `http://localhost:11434/v1` (Ollama). The model name is `MOOREMIND_LLM_MODEL`. An optional key is `MOOREMIND_LLM_API_KEY` or `OPENAI_API_KEY`. Thinking is off (`think` false, `reasoning_effort` `none`, a `/no_think` prefix). Temperature is 0, the seed defaults to 0, and the generation cap defaults to 512 tokens.
+
+Each episode's sentences go out as one `TASK teach` call. The reply must be one JSON object, `{"assertions":[...]}`, using `in`, `on`, `at`, `held_by`, `is_a`, `color`, `shape`, `material`, `size`, or `texture`, and lowercase slugs. The question goes out as one `TASK question` call and must come back as `{"kind":...,"entity":...}` with kind `where`, `before`, `index`, `middle`, `time`, or `color`. The prompt has three short examples (a kettle on a stove, Dot moving from the larder to the courtyard and joining the pibbles, and a second-stop question). Those sentences are not MooreSense items and not rows from the paraphrase files.
+
+Parsing is strict. A single markdown fence is accepted. Prose around a JSON object is not. Capital letters are not lowercased. A bad field rejects the whole call. An empty assertion list is a failure. Timeouts and HTTP errors are failures. Nothing is passed to the rule parser to be repaired. A failed teach stores nothing for that episode, and the episode still counts for decay, so a translator miss can erase a fact under `fade` and can also leave a wrong fact in place when a later call succeeds with a bad but valid assertion. A wrong fact stays until a later assertion replaces that slot. That is a limit: translator errors become memory.
+
+The choices are not sent to the translator. After the store has a phrase, a matching choice letter is returned, as with the other learners.
+
+The comparison arm asks the same model, with thinking off and the same token cap, to answer from the English directly. Its prompt is the MooreSense free-text shape (the sentences so far, the question, a final `Answer:` line) and does not include the JSON examples. On a paraphrase story the store arm is asked every earlier question too, so a recall can reinforce a fact. The model-alone arm sees the accumulated sentences once, at the question being scored.
+
 ## What is ours, and what is only a claim in the book
 
 The book claims an atomic thought is the smallest reusable unit, that a relationship is itself a thought, that class membership unlocks inherited attributes, that an exception overrides a default without erasing it, that a move keeps its timeframe, and that new knowledge is available immediately and does not wipe old knowledge. The store follows those shapes.
@@ -106,7 +120,7 @@ The book also names weighting, fading, and a learning cycle, without a formula w
 
 ## Limits and open questions
 
-- There is no perception, planning, or dialogue. The structured path has no sentence parser. The text path has the rule list above, and a sentence outside that list is refused. On the structured path, a question that is not one of the cues is treated as "where now". On the text path, that question is refused.
+- There is no perception, planning, or dialogue. The structured path has no sentence parser. The rule-based text path refuses a sentence outside its list. The translator path refuses invalid JSON instead. On the structured path, a question that is not one of the cues is treated as "where now". On the rule-based text path, that question is refused.
 - Ordinals assume the places were taught in order. A question that says "second" means the second captured place, not a search for the tag `t2`, unless the question actually contains `t2`.
 - A faded hop shortens the chain instead of withholding it. The shortened phrase can be one of the wrong choices. The count still says the answer came from the store, because a phrase was produced.
 - History below the prune floor is gone. A "where before" after that prune falls back.

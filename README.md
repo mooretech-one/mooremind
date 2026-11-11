@@ -102,6 +102,42 @@ mooresense eval \
 
 `MOOREMIND_ACCOUNTING` is optional. When it is set, the learner rewrites that file with how many answers came from the store and how many fell back to `I don't know`. A fallback does not look at the choices. The measured dev numbers are in [docs/results.md](docs/results.md).
 
+## Running the model evaluation
+
+This step needs Ollama on the machine that has the models. CI does not call a model. The model is only a translator. The store still does the remembering. Thinking is off, temperature is 0, and the cap is 512 tokens.
+
+Paraphrase sets (all development data now: the first file, the PR2 set, and the fresh 60). One command per model. A re-run resumes from the JSONL. `--restart` starts over.
+
+```bash
+python -m mooremind.paraphrase_eval --model gemma3:1b
+python -m mooremind.paraphrase_eval --model qwen3:1.7b
+python -m mooremind.paraphrase_eval --model qwen3:8b
+```
+
+Each command writes `results/paraphrase-<model>.jsonl`, a `.summary.json`, and a `.md` table. Optional: `MOOREMIND_LLM_BASE_URL` (default `http://localhost:11434/v1`), `MOOREMIND_LLM_API_KEY`, `MOOREMIND_LLM_TIMEOUT`, `MOOREMIND_LLM_SEED`.
+
+The 144 public MooreSense learn items, through the external learner. Filter to `category == learn` first, as in the section above. Point `--learner` at `mooremind.learner:LlmKeepLearner` or `LlmFadeLearner`. The class is constructed with no arguments, so the model comes from the environment.
+
+```bash
+export MOOREMIND_LLM_BASE_URL=http://localhost:11434/v1
+export MOOREMIND_LLM_MODEL=gemma3:1b
+
+mooresense eval \
+  --teach-mode external \
+  --learner mooremind.learner:LlmKeepLearner \
+  --items /tmp/mooresense-learn.jsonl \
+  --out results/llm-keep-gemma3-1b.jsonl
+
+MOOREMIND_LLM_MODEL=gemma3:1b \
+mooresense eval \
+  --teach-mode external \
+  --learner mooremind.learner:LlmFadeLearner \
+  --items /tmp/mooresense-learn.jsonl \
+  --out results/llm-fade-gemma3-1b.jsonl
+```
+
+Repeat with `MOOREMIND_LLM_MODEL=qwen3:1.7b` and `qwen3:8b`, and change the `--out` name to match. A bad reply is counted and skipped. It does not stop the run.
+
 ## Topic rule
 
 No tax, fiscal, government, or public-administration content in code, tests, examples, or docs. Examples stay in ordinary kitchens, pets, toys, gardens, and workshops. See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -115,3 +115,35 @@ Same 144 items, as reported for the frozen models. Those runs put the teach sent
 | no-teach | qwen3:1.7b | 0.236 |
 | no-teach | gemma3:1b | 0.194 |
 | chance | uniform over the choices | 0.250 |
+
+## Model plus store, to be filled after the tower run
+
+Not measured in this pull request. The tower has Ollama. The commands are in the README section "Running the model evaluation". The paraphrase files (the first development set, the PR2 held-out set, and the fresh 60) are all development data. Fill the cells from `results/paraphrase-<model>.md` after each run. Do not treat a filled table as a held-out score.
+
+| split | arm | accuracy | one_shot | update | inheritance | composition | interference | refresh |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dev | llm-keep | — | — | — | — | — | — | — |
+| dev | llm-fade | — | — | — | — | — | — | — |
+| dev | model-alone | — | — | — | — | — | — | — |
+| heldout | llm-keep | — | — | — | — | — | — | — |
+| heldout | llm-fade | — | — | — | — | — | — | — |
+| heldout | model-alone | — | — | — | — | — | — | — |
+| fresh | llm-keep | — | — | — | — | — | — | — |
+| fresh | llm-fade | — | — | — | — | — | — | — |
+| fresh | model-alone | — | — | — | — | — | — | — |
+
+Failure counts for the store arms, same runs. `baseline_miss` is only for `model-alone`.
+
+| split | arm | transport | json_invalid | empty | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | fallback | baseline_miss |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| dev | llm-keep | — | — | — | — | — | — | — | — | — |
+| dev | llm-fade | — | — | — | — | — | — | — | — | — |
+| dev | model-alone | — | — | — | — | — | — | — | — | — |
+| heldout | llm-keep | — | — | — | — | — | — | — | — | — |
+| heldout | llm-fade | — | — | — | — | — | — | — | — | — |
+| heldout | model-alone | — | — | — | — | — | — | — | — | — |
+| fresh | llm-keep | — | — | — | — | — | — | — | — | — |
+| fresh | llm-fade | — | — | — | — | — | — | — | — | — |
+| fresh | model-alone | — | — | — | — | — | — | — | — | — |
+
+One label per miss, in this order: transport, JSON invalid, empty assertions, off-vocabulary, wrong query, wrong assertion, store/decay, fallback. A correct row is not labelled.
