@@ -72,6 +72,27 @@ The focus is the longest stored name that appears as a word or phrase. `start` i
 
 If the store produces a phrase, and a choice's text matches it ignoring case, the reply is that choice's letter. That is how a known answer is reported. If no choice matches, the reply is the phrase itself. If the store has no phrase, the reply is `I don't know`. The choices are not looked at on that path, even when one of them is the same string. The learner counts `from_store` and `fell_back`. Set `MOOREMIND_ACCOUNTING` to a path and each answer rewrites a small JSON file with those totals.
 
+## English front end
+
+`KeepLearner` and `FadeLearner` still take structured assertions. `TextKeepLearner` and `TextFadeLearner` do not. MooreSense's external mode calls `teach` with assertion objects (`source`, `type`, `target`, `text`, `qualifiers`) and `answer` with the whole item. The text classes read `text` on each assertion, plus `question` and the choice text. They do not read `source`, `type`, `target`, `qualifiers`, `answer`, `world_state`, `trace`, `context`, or the item's `teach` list while answering. `item.id` is copied onto a trace line when `MOOREMIND_TRACE` is set. It is not used to choose the reply.
+
+`mooremind.english.parse_sentence` is a list of regular expressions. A match becomes one store fact. No match is a refusal: the sentence is counted, and it is not stored. The episode still counts, so `fade` still decays. A sentence that says "is in", "is inside", "stays", "sits", "stands", "begins", "was left", or "moves to" is stored as `in`. For a place with no further location, that phrase is the same as the harness's `at`. "Is held by", "is holding", and "carries" are `held_by`. "Contains" and "has … in it" put the thing inside the container. "Is a", "counts as", and "a kind is a kind" are class links. "Is <colour>" is a colour, and the colour has to be in a fixed list of ordinary colour words. Anything else after "is" is refused.
+
+Questions are gated. A question is accepted only when it starts with "where is/was/did/can", "which place", "which container", "who has" (or "who is holding"), or "what/which colour". Accepted questions then use the same cue list as the structured learner. A question that fails the gate is `I don't know`. It is not treated as "where now".
+
+Shapes the front end will not read, on purpose:
+
+- inverted order, such as "In the loft sits Nim"
+- a possessive, such as "Nim's spoon"
+- two facts joined in one sentence
+- a move told as "from the porch to the yard" in one sentence
+- a pronoun standing in for a name
+- a question that does not start with the forms above
+
+Weights are the PR1 policies. This front end does not change them.
+
+The public learn sentences are twenty-five skeletons. The grammar covers those skeletons, so a perfect score on that slice does not mean the front end reads English in general. The held-out paraphrases in `tests/paraphrase_heldout.py` use other word orders and other questions. They were written after the rules were frozen, and the rules were not edited to lift that score.
+
 ## What is ours, and what is only a claim in the book
 
 The book claims an atomic thought is the smallest reusable unit, that a relationship is itself a thought, that class membership unlocks inherited attributes, that an exception overrides a default without erasing it, that a move keeps its timeframe, and that new knowledge is available immediately and does not wipe old knowledge. The store follows those shapes.
@@ -80,7 +101,7 @@ The book also names weighting, fading, and a learning cycle, without a formula w
 
 ## Limits and open questions
 
-- There is no perception, planning, dialogue, or parser. A sentence that is not one of the cues above is treated as "where now".
+- There is no perception, planning, or dialogue. The structured path has no sentence parser. The text path has the rule list above, and a sentence outside that list is refused. On the structured path, a question that is not one of the cues is treated as "where now". On the text path, that question is refused.
 - Ordinals assume the places were taught in order. A question that says "second" means the second captured place, not a search for the tag `t2`, unless the question actually contains `t2`.
 - A faded hop shortens the chain instead of withholding it. The shortened phrase can be one of the wrong choices. The count still says the answer came from the store, because a phrase was produced.
 - History below the prune floor is gone. A "where before" after that prune falls back.

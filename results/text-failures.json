@@ -1,0 +1,201 @@
+{
+  "text-keep": {
+    "accounting": {
+      "fell_back": 0,
+      "from_store": 144,
+      "preset": "text-keep",
+      "sentences": 348,
+      "sentences_parsed": 348,
+      "sentences_unparsed": 0,
+      "unparsed_rate": 0.0
+    },
+    "failure_classes": {},
+    "failure_classes_by_subtype": {},
+    "misses": [],
+    "n": 144,
+    "n_correct": 144,
+    "sentences": 348,
+    "sentences_unparsed": 0,
+    "unparsed_rate": 0.0,
+    "retention_accuracy": 1.0,
+    "seed_consistency": 1.0
+  },
+  "text-fade": {
+    "accounting": {
+      "fell_back": 12,
+      "from_store": 132,
+      "preset": "text-fade",
+      "sentences": 348,
+      "sentences_parsed": 348,
+      "sentences_unparsed": 0,
+      "unparsed_rate": 0.0
+    },
+    "failure_classes": {
+      "store_or_decay": 18
+    },
+    "failure_classes_by_subtype": {
+      "composition": {
+        "store_or_decay": 6
+      },
+      "interference": {
+        "store_or_decay": 6
+      },
+      "refresh": {
+        "store_or_decay": 6
+      }
+    },
+    "misses": [
+      {
+        "class": "store_or_decay",
+        "gold": "in the tin, held by Brin, in the workshop",
+        "id": "learn.composition.t2.0005-v00",
+        "learn_subtype": "composition",
+        "prediction": "in the tin, held by brin",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the crate, held by Luma, in the garden",
+        "id": "learn.composition.t2.0005-v01",
+        "learn_subtype": "composition",
+        "prediction": "in the crate, held by luma",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the tray, held by Nox, in the pantry",
+        "id": "learn.composition.t2.0005-v02",
+        "learn_subtype": "composition",
+        "prediction": "in the tray, held by nox",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the crate, held by Veld, in the garden",
+        "id": "learn.composition.t3.0008-v00",
+        "learn_subtype": "composition",
+        "prediction": "D",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the crate, held by Nima, in the greenhouse",
+        "id": "learn.composition.t3.0008-v01",
+        "learn_subtype": "composition",
+        "prediction": "C",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the tin, held by Joss, in the loft",
+        "id": "learn.composition.t3.0008-v02",
+        "learn_subtype": "composition",
+        "prediction": "D",
+        "retention": false
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the kitchen",
+        "id": "learn.interference.t2.0005-v00",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the shed",
+        "id": "learn.interference.t2.0005-v01",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the cellar",
+        "id": "learn.interference.t2.0005-v02",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the workshop",
+        "id": "learn.interference.t3.0008-v00",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the porch",
+        "id": "learn.interference.t3.0008-v01",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the hallway",
+        "id": "learn.interference.t3.0008-v02",
+        "learn_subtype": "interference",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the cellar",
+        "id": "learn.refresh.t2.0005-v00",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the workshop",
+        "id": "learn.refresh.t2.0005-v01",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the workshop",
+        "id": "learn.refresh.t2.0005-v02",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the garden",
+        "id": "learn.refresh.t3.0008-v00",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the hallway",
+        "id": "learn.refresh.t3.0008-v01",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      },
+      {
+        "class": "store_or_decay",
+        "gold": "in the loft",
+        "id": "learn.refresh.t3.0008-v02",
+        "learn_subtype": "refresh",
+        "prediction": "I don't know",
+        "retention": true
+      }
+    ],
+    "n": 144,
+    "n_correct": 126,
+    "sentences": 348,
+    "sentences_unparsed": 0,
+    "unparsed_rate": 0.0,
+    "retention_accuracy": 0.3333333333333333,
+    "seed_consistency": 0.875
+  }
+}
