@@ -46,14 +46,62 @@ The weights were fixed before this run. Nothing here was patched because a parti
 
 `keep` scores 1.000 because the assertions are already structured and the cue list covers the question forms in this slice. It is not a claim about unseen wording, and it is not a claim that the same program would score 1.000 on the private split. The private split was not used.
 
+## Text path
+
+`TextKeepLearner` and `TextFadeLearner` read `assertion.text`, the question, and the choice strings. They do not read the structured fields. Same commit, same 144 items.
+
+Every one of the 348 teach sentences matched a rule (`unparsed_rate` 0). Every question matched the question gate. The text path therefore repeats the structured scores, including the same 18 `fade` misses. Those 18 are class `store_or_decay`. There is no parse failure, no unrecognised question, and no bare fallback on this slice. The detail is `results/text-failures.json`.
+
+| preset | accuracy | one_shot | update | inheritance | composition | interference | refresh | retention (18) | seed consistency | from store | fell back | sentences unread |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| text-keep | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 144 | 0 | 0 / 348 |
+| text-fade | 0.875 | 1.000 | 1.000 | 1.000 | 0.750 | 0.750 | 0.750 | 0.333 | 0.875 | 132 | 12 | 0 / 348 |
+
+The public learn English is twenty-five sentence skeletons. Covering them is why this table matches the structured one. It is not evidence that the front end reads other English.
+
+### Failure classes
+
+A miss is labelled in this order: a teach sentence in that episode was not read (`parse_failure`); the question form was not recognised (`unrecognised_question`); the question was read and the reply was still wrong or empty because of the store, including decay (`store_or_decay`); otherwise `fallback`.
+
+| run | parse_failure | unrecognised_question | store_or_decay | fallback |
+| --- | ---: | ---: | ---: | ---: |
+| text-keep, 144 dev items | 0 | 0 | 0 | 0 |
+| text-fade, 144 dev items | 0 | 0 | 18 | 0 |
+
+Shapes the front end does not read: inverted order ("In the loft sits Nim"), a possessive, two facts in one sentence, "from the porch to the yard" as one sentence, a pronoun standing in for a name, and a question that does not start with where, which place, which container, who has, or colour.
+
+## Paraphrases written here
+
+These items are not MooreSense. Gold is the phrase the store produces from the structured facts shipped with each item. The development split is what the rules were allowed to grow on. The held-out split was written after the rules were frozen and was not used to add a rule. Development has 38 questions (refresh has 8, the others 6). Held-out has 6 per sub-type, 36 in all.
+
+| split | preset | accuracy | one_shot | update | inheritance | composition | interference | refresh |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| development | text-keep | 1.000 (38/38) | 6/6 | 6/6 | 6/6 | 6/6 | 6/6 | 8/8 |
+| development | text-fade | 0.868 (33/38) | 6/6 | 6/6 | 6/6 | 5/6 | 4/6 | 6/8 |
+| held-out | text-keep | 0.389 (14/36) | 2/6 | 2/6 | 2/6 | 2/6 | 3/6 | 3/6 |
+| held-out | text-fade | 0.333 (12/36) | 2/6 | 2/6 | 2/6 | 2/6 | 2/6 | 2/6 |
+
+Development `fade` misses are the five marked long gaps: four `I don't know` replies and one composition chain that lost the room. All five are `store_or_decay`.
+
+Held-out misses:
+
+| preset | parse_failure | unrecognised_question | store_or_decay | fallback |
+| --- | ---: | ---: | ---: | ---: |
+| text-keep | 15 | 7 | 0 | 0 |
+| text-fade | 15 | 7 | 2 | 0 |
+
+The two extra `fade` misses are the long gaps whose sentences the front end could read. One held-out composition episode was only partly read: "The pot contains the marble" matched, and "Holding that pot is Tess" did not, so the reply was "in the pot". That miss is a `parse_failure` because the episode was not fully read.
+
 ## Frozen-model reference points
 
-Same 144 items, as reported for the frozen models. Those runs put the teach sentences in the prompt (`in-context`) or withhold them (`no-teach`). MooreMind never sees that prose. It sees the structured assertions. The numbers sit side by side so the interface difference is visible. A higher MooreMind score is not a win at reading English.
+Same 144 items, as reported for the frozen models. Those runs put the teach sentences in the prompt (`in-context`) or withhold them (`no-teach`). The structured MooreMind rows see assertions. The text rows see the same sentences a model sees, through the rule list above. A higher MooreMind score on the templated dev slice is not a win at reading open English. The held-out table is the check against other wording.
 
 | arm | system | learn accuracy |
 | --- | --- | ---: |
-| external, no decay | MooreMind `keep` | 1.000 |
-| external, decay | MooreMind `fade` | 0.875 |
+| external, structured, no decay | MooreMind `keep` | 1.000 |
+| external, structured, decay | MooreMind `fade` | 0.875 |
+| external, English, no decay | MooreMind `text-keep` | 1.000 |
+| external, English, decay | MooreMind `text-fade` | 0.875 |
 | in-context | qwen3:8b | 0.889 |
 | in-context | qwen3:1.7b | 0.694 |
 | in-context | gemma3:1b | 0.333 |

@@ -22,7 +22,7 @@ No tax, fiscal, government, or public-administration content anywhere in this re
 
 ## What not to add
 
-- An English parser. The harness passes structured assertions. Question cues live in `mooremind.query` and should stay a short list.
+- A general English parser, or a learned one. Sentence shapes for the text path live in `mooremind.english` and should stay a short list. Question cues for the structured path live in `mooremind.query`. Do not add a shape in order to lift `tests/paraphrase_heldout.py`.
 - An LLM call, a network call, or a secret.
 - A special case for a MooreSense item id, seed, name, or gold answer.
 - Reads of gold fields (`answer`, `world_state`, `trace`) from the learner.

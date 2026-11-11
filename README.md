@@ -2,7 +2,7 @@
 
 MooreMind is a small Python learner. It stores knowledge as atomic thoughts, relationships of the form `[source -> relation -> target]` with a weight and optional qualifiers, and a fact is usable the moment it is taught. There is no training run and no language model.
 
-It is not a chatbot, a planner, or an English parser. It does not see pixels, and it does not call a network. The harness hands it structured assertions. A separate cue list reads the question far enough to choose which stored fact to report.
+It is not a chatbot or a planner. It does not see pixels, and it does not call a network. `KeepLearner` reads structured assertions. `TextKeepLearner` reads the English sentence on each assertion and a small list of sentence shapes. That list is not a general parser. A separate cue list reads a recognised question far enough to choose which stored fact to report.
 
 The sibling benchmark is [MooreSense](https://github.com/mooretech-one/mooresense). MooreMind implements that project's external-learner protocol (`reset`, `teach`, `answer`) and is scored on the public dev learn items. MooreSense is a read-only dependency. This repo does not modify it and does not contain its private test split.
 
@@ -50,7 +50,7 @@ class Question:
 print(mind.answer(Question()))  # in the garden
 ```
 
-`MooreMind()` is the `keep` preset: later episodes do not decay a fact. `FadeLearner` uses a lower starting weight and drops a fact on the second episode that does not restate it. The numbers, and how they differ from the book they are loosely drawn from, are in [docs/design.md](docs/design.md).
+`MooreMind()` is the `keep` preset: later episodes do not decay a fact. `FadeLearner` uses a lower starting weight and drops a fact on the second episode that does not restate it. `TextKeepLearner` and `TextFadeLearner` are the same two policies fed from English. The numbers, and how they differ from the book they are loosely drawn from, are in [docs/design.md](docs/design.md).
 
 ## Score with MooreSense
 
@@ -89,6 +89,15 @@ mooresense eval \
   --learner mooremind.learner:FadeLearner \
   --items /tmp/mooresense-learn.jsonl \
   --out results/fade.jsonl
+
+# English sentences only. The trace records which sentences and questions were read.
+MOOREMIND_ACCOUNTING=results/text-keep.accounting.json \
+MOOREMIND_TRACE=results/text-keep.trace.jsonl \
+mooresense eval \
+  --teach-mode external \
+  --learner mooremind.learner:TextKeepLearner \
+  --items /tmp/mooresense-learn.jsonl \
+  --out results/text-keep.jsonl
 ```
 
 `MOOREMIND_ACCOUNTING` is optional. When it is set, the learner rewrites that file with how many answers came from the store and how many fell back to `I don't know`. A fallback does not look at the choices. The measured dev numbers are in [docs/results.md](docs/results.md).

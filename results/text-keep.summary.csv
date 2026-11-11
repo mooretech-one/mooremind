@@ -1,0 +1,6 @@
+category,tier,n,n_correct,accuracy,ci_low,ci_high,n_parse_failed,parse_failure_rate,n_truncated,truncation_rate,n_malformed,malformed_rate,n_empty,empty_rate
+all,all,144,144,1.0,1.0,1.0,0,0.0,0,0.0,0,0.0,0,0.0
+learn,all,144,144,1.0,1.0,1.0,0,0.0,0,0.0,0,0.0,0,0.0
+learn,1,36,36,1.0,1.0,1.0,0,0.0,0,0.0,0,0.0,0,0.0
+learn,2,54,54,1.0,1.0,1.0,0,0.0,0,0.0,0,0.0,0,0.0
+learn,3,54,54,1.0,1.0,1.0,0,0.0,0,0.0,0,0.0,0,0.0
