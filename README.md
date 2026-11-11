@@ -1,3 +1,102 @@
 # MooreMind
 
-A small non-LLM learner that stores knowledge as atomic thoughts.
+MooreMind is a small Python learner. It stores knowledge as atomic thoughts, relationships of the form `[source -> relation -> target]` with a weight and optional qualifiers, and a fact is usable the moment it is taught. There is no training run and no language model.
+
+It is not a chatbot, a planner, or an English parser. It does not see pixels, and it does not call a network. The harness hands it structured assertions. A separate cue list reads the question far enough to choose which stored fact to report.
+
+The sibling benchmark is [MooreSense](https://github.com/mooretech-one/mooresense). MooreMind implements that project's external-learner protocol (`reset`, `teach`, `answer`) and is scored on the public dev learn items. MooreSense is a read-only dependency. This repo does not modify it and does not contain its private test split.
+
+## Install
+
+Python 3.10 or newer.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+ruff check . && ruff format --check .
+```
+
+```python
+from mooremind import MooreMind
+
+mind = MooreMind()
+mind.teach(
+    [
+        {
+            "source": "nim",
+            "type": "at",
+            "target": "kitchen",
+            "text": "Nim is in the kitchen.",
+            "qualifiers": {"timeframe": "t1"},
+        },
+        {
+            "source": "nim",
+            "type": "at",
+            "target": "garden",
+            "text": "Nim moves to the garden.",
+            "qualifiers": {"timeframe": "t2"},
+        },
+    ]
+)
+
+
+class Question:
+    question = "Where is Nim now?"
+    choices = None
+
+
+print(mind.answer(Question()))  # in the garden
+```
+
+`MooreMind()` is the `keep` preset: later episodes do not decay a fact. `FadeLearner` uses a lower starting weight and drops a fact on the second episode that does not restate it. The numbers, and how they differ from the book they are loosely drawn from, are in [docs/design.md](docs/design.md).
+
+## Score with MooreSense
+
+Tested against MooreSense commit `de388dc80807fbb232aef98d6593f52808f8769e` (the `main` tip when this prototype was measured). The dev learn slice is 144 items, 48 seeds, six sub-types. Filter to `category == learn` yourself. Passing the whole dev file makes the harness call a chat model for the other categories.
+
+```bash
+pip install -e ".[eval]"
+# or: pip install "mooresense @ git+https://github.com/mooretech-one/mooresense.git@de388dc80807fbb232aef98d6593f52808f8769e"
+
+python - << 'PY'
+from pathlib import Path
+from mooresense.schema import dumps_item, load_jsonl
+
+items = [
+    item
+    for item in load_jsonl(Path("path/to/mooresense/data/dev.jsonl"))
+    if item.category.value == "learn"
+]
+Path("/tmp/mooresense-learn.jsonl").write_text(
+    "".join(dumps_item(item) + "\n" for item in items),
+    encoding="utf-8",
+)
+print(len(items))
+PY
+
+MOOREMIND_ACCOUNTING=results/keep.accounting.json \
+mooresense eval \
+  --teach-mode external \
+  --learner mooremind.learner:KeepLearner \
+  --items /tmp/mooresense-learn.jsonl \
+  --out results/keep.jsonl
+
+MOOREMIND_ACCOUNTING=results/fade.accounting.json \
+mooresense eval \
+  --teach-mode external \
+  --learner mooremind.learner:FadeLearner \
+  --items /tmp/mooresense-learn.jsonl \
+  --out results/fade.jsonl
+```
+
+`MOOREMIND_ACCOUNTING` is optional. When it is set, the learner rewrites that file with how many answers came from the store and how many fell back to `I don't know`. A fallback does not look at the choices. The measured dev numbers are in [docs/results.md](docs/results.md).
+
+## Topic rule
+
+No tax, fiscal, government, or public-administration content in code, tests, examples, or docs. Examples stay in ordinary kitchens, pets, toys, gardens, and workshops. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
