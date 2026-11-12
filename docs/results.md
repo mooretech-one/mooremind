@@ -116,60 +116,100 @@ Same 144 items, as reported for the frozen models. Those runs put the teach sent
 | no-teach | gemma3:1b | 0.194 |
 | chance | uniform over the choices | 0.250 |
 
-## Model plus store, to be filled after the tower run
+## Model plus store, tower run
 
-Not measured in this pull request. The tower has Ollama. The commands are in the README section "Running the model evaluation". The paraphrase files (the first development set, the PR2 held-out set, and the fresh 60) are all development data. Fill the cells from `results/paraphrase-<model>.md` after each run. Do not treat a filled table as a held-out score.
+Recorded from the tower on main `f7f717d`. Ollama, thinking off, temperature 0. The paraphrase files are development data (38 dev, 36 held-out, 60 fresh). The tower summary gave overall accuracy, not a per-sub-type split, so those columns stay blank. A blank failure cell in the source notes was 0. `baseline_miss` for `model-alone` is the count of wrong rows (total minus correct).
+
+The translator prompt still has three JSON examples that the model-alone prompt does not. The store still emits a canonical phrase, and the model-alone reply has to match it. A wrong but valid assertion stays in memory. Under `fade`, a failed teach still counts as an episode.
+
+### gemma3:1b
 
 | split | arm | accuracy | one_shot | update | inheritance | composition | interference | refresh |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| dev | llm-keep | — | — | — | — | — | — | — |
-| dev | llm-fade | — | — | — | — | — | — | — |
-| dev | model-alone | — | — | — | — | — | — | — |
-| heldout | llm-keep | — | — | — | — | — | — | — |
-| heldout | llm-fade | — | — | — | — | — | — | — |
-| heldout | model-alone | — | — | — | — | — | — | — |
-| fresh | llm-keep | — | — | — | — | — | — | — |
-| fresh | llm-fade | — | — | — | — | — | — | — |
-| fresh | model-alone | — | — | — | — | — | — | — |
-
-Failure counts for the store arms, same runs. `baseline_miss` is only for `model-alone`.
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- |
+| dev | llm-keep | 0.000 (0/38) | — | — | — | — | — | — |
+| dev | llm-fade | 0.000 (0/38) | — | — | — | — | — | — |
+| dev | model-alone | 0.079 (3/38) | — | — | — | — | — | — |
+| heldout | llm-keep | 0.000 (0/36) | — | — | — | — | — | — |
+| heldout | llm-fade | 0.000 (0/36) | — | — | — | — | — | — |
+| heldout | model-alone | 0.083 (3/36) | — | — | — | — | — | — |
+| fresh | llm-keep | 0.000 (0/60) | — | — | — | — | — | — |
+| fresh | llm-fade | 0.000 (0/60) | — | — | — | — | — | — |
+| fresh | model-alone | 0.067 (4/60) | — | — | — | — | — | — |
 
 | split | arm | transport | json_invalid | empty | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | fallback | baseline_miss |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| dev | llm-keep | — | — | — | — | — | — | — | — | — |
-| dev | llm-fade | — | — | — | — | — | — | — | — | — |
-| dev | model-alone | — | — | — | — | — | — | — | — | — |
-| heldout | llm-keep | — | — | — | — | — | — | — | — | — |
-| heldout | llm-fade | — | — | — | — | — | — | — | — | — |
-| heldout | model-alone | — | — | — | — | — | — | — | — | — |
-| fresh | llm-keep | — | — | — | — | — | — | — | — | — |
-| fresh | llm-fade | — | — | — | — | — | — | — | — | — |
-| fresh | model-alone | — | — | — | — | — | — | — | — | — |
+| dev | llm-keep | 0 | 5 | 0 | 33 | 0 | 0 | 0 | 0 | 0 |
+| dev | llm-fade | 0 | 5 | 0 | 33 | 0 | 0 | 0 | 0 | 0 |
+| dev | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 35 |
+| heldout | llm-keep | 0 | 7 | 0 | 27 | 0 | 2 | 0 | 0 | 0 |
+| heldout | llm-fade | 0 | 7 | 0 | 27 | 0 | 2 | 0 | 0 | 0 |
+| heldout | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 33 |
+| fresh | llm-keep | 0 | 14 | 0 | 46 | 0 | 0 | 0 | 0 | 0 |
+| fresh | llm-fade | 0 | 14 | 0 | 46 | 0 | 0 | 0 | 0 | 0 |
+| fresh | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 56 |
 
-One label per miss, in this order: transport, JSON invalid, empty assertions, off-vocabulary, wrong query, wrong assertion, store/decay, fallback. A correct row is not labelled.
+### qwen3:1.7b
 
-## Hardened translator, to be filled after the tower run
+| split | arm | accuracy | one_shot | update | inheritance | composition | interference | refresh |
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- |
+| dev | llm-keep | 0.579 (22/38) | — | — | — | — | — | — |
+| dev | llm-fade | 0.526 (20/38) | — | — | — | — | — | — |
+| dev | model-alone | 0.105 (4/38) | — | — | — | — | — | — |
+| heldout | llm-keep | 0.500 (18/36) | — | — | — | — | — | — |
+| heldout | llm-fade | 0.500 (18/36) | — | — | — | — | — | — |
+| heldout | model-alone | 0.139 (5/36) | — | — | — | — | — | — |
+| fresh | llm-keep | 0.183 (11/60) | — | — | — | — | — | — |
+| fresh | llm-fade | 0.167 (10/60) | — | — | — | — | — | — |
+| fresh | model-alone | 0.050 (3/60) | — | — | — | — | — | — |
 
-Not measured yet. The alias list and the self-check are general. They were not written against the fresh split. Resume is the same JSONL. Arms are `llm-keep-<variant>`, `llm-fade-<variant>`, `model-alone` (old prompt), and `model-alone-examples` (the three plain scenes).
+| split | arm | transport | json_invalid | empty | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | fallback | baseline_miss |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| dev | llm-keep | 0 | 0 | 0 | 11 | 2 | 3 | 0 | 0 | 0 |
+| dev | llm-fade | 0 | 0 | 0 | 11 | 2 | 3 | 2 | 0 | 0 |
+| dev | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 34 |
+| heldout | llm-keep | 0 | 0 | 0 | 11 | 1 | 6 | 0 | 0 | 0 |
+| heldout | llm-fade | 0 | 0 | 0 | 11 | 1 | 6 | 0 | 0 | 0 |
+| heldout | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 31 |
+| fresh | llm-keep | 0 | 0 | 0 | 31 | 15 | 3 | 0 | 0 | 0 |
+| fresh | llm-fade | 0 | 0 | 0 | 32 | 15 | 3 | 0 | 0 | 0 |
+| fresh | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 57 |
 
-```bash
-python -m mooremind.paraphrase_eval --model qwen3:8b --variant baseline
-python -m mooremind.paraphrase_eval --model qwen3:8b --variant mapping
-python -m mooremind.paraphrase_eval --model qwen3:8b --variant selfcheck
-python -m mooremind.paraphrase_eval --model qwen3:8b --variant all
-python -m mooremind.paraphrase_eval --model qwen3:8b --baseline-prompt old --baseline-prompt examples
-```
+### qwen3:8b
 
-Repeat for `qwen3:1.7b` and `gemma3:1b`. The default command, with no `--variant`, runs every variant and both prompts.
+| split | arm | accuracy | one_shot | update | inheritance | composition | interference | refresh |
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- |
+| dev | llm-keep | 0.868 (33/38) | — | — | — | — | — | — |
+| dev | llm-fade | 0.737 (28/38) | — | — | — | — | — | — |
+| dev | model-alone | 0.421 (16/38) | — | — | — | — | — | — |
+| heldout | llm-keep | 0.833 (30/36) | — | — | — | — | — | — |
+| heldout | llm-fade | 0.778 (28/36) | — | — | — | — | — | — |
+| heldout | model-alone | 0.333 (12/36) | — | — | — | — | — | — |
+| fresh | llm-keep | 0.533 (32/60) | — | — | — | — | — | — |
+| fresh | llm-fade | 0.467 (28/60) | — | — | — | — | — | — |
+| fresh | model-alone | 0.133 (8/60) | — | — | — | — | — | — |
 
-| model | split | arm | accuracy | json_invalid | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | dropped |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| qwen3:8b | fresh | llm-keep-baseline | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | llm-keep-mapping | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | llm-keep-selfcheck | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | llm-keep-all | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | llm-fade-all | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | model-alone | — | — | — | — | — | — | — |
-| qwen3:8b | fresh | model-alone-examples | — | — | — | — | — | — | — |
+| split | arm | transport | json_invalid | empty | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | fallback | baseline_miss |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| dev | llm-keep | 0 | 0 | 0 | 3 | 1 | 1 | 0 | 0 | 0 |
+| dev | llm-fade | 0 | 0 | 0 | 3 | 1 | 1 | 5 | 0 | 0 |
+| dev | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 22 |
+| heldout | llm-keep | 0 | 0 | 0 | 1 | 1 | 4 | 0 | 0 | 0 |
+| heldout | llm-fade | 0 | 0 | 0 | 1 | 1 | 4 | 2 | 0 | 0 |
+| heldout | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 24 |
+| fresh | llm-keep | 0 | 0 | 0 | 10 | 3 | 15 | 0 | 0 | 0 |
+| fresh | llm-fade | 0 | 0 | 0 | 11 | 3 | 18 | 0 | 0 | 0 |
+| fresh | model-alone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 52 |
 
-Copy the same rows for `dev` and `heldout`, and for the other two models, from `results/paraphrase-<model>.md`. The first tower section above is the unhardened path. `model-alone-examples` sees the same three scenes as the translator. `model-alone` does not, so that comparison can be repeated. A wrong assertion still persists, and `fade` still counts a failed teach as an episode.
+`qwen3:8b` with the keep store is ahead of that model alone on every split (0.868 against 0.421 on dev, 0.833 against 0.333 on held-out, 0.533 against 0.133 on fresh). `qwen3:1.7b` shows the same direction at a lower level. `gemma3:1b` produced no correct store answer. Its misses are invalid JSON and off-vocabulary output, and the model alone is only a little above zero. `fade` is at or below `keep` on every split. Where they differ, the extra fade misses are `store_or_decay` (dev 5 and held-out 2 for `qwen3:8b`, dev 2 for `qwen3:1.7b`).
+
+### 144 public learn items
+
+`mooresense eval --teach-mode external` on the public dev learn slice. Accuracy, then the harness parse-failure rate in parentheses. Every parse failure was `malformed`. Per-class translator counts are not in that output.
+
+| model | llm-keep | llm-fade | in-context (published) | structured keep / fade |
+| --- | ---: | ---: | ---: | --- |
+| gemma3:1b | 0.000 (1.000) | 0.000 (1.000) | 0.333 | 1.000 / 0.875 |
+| qwen3:1.7b | 0.486 (0.472) | 0.410 (0.549) | 0.694 | 1.000 / 0.875 |
+| qwen3:8b | 0.896 (0.083) | 0.792 (0.181) | 0.889 | 1.000 / 0.875 |
+
+`qwen3:8b` keep on these 144 items is 0.896, next to the published in-context 0.889. Those two runs are not the paired baseline: in-context asks for a letter among choices and allows 1024 tokens. `qwen3:1.7b` keep (0.486) is below its published in-context 0.694. `gemma3:1b` keep is 0.000 with every reply unparsed, below its published in-context 0.333. Structured keep 1.000 and fade 0.875 are unchanged. No-teach reference points remain qwen3:8b 0.312, qwen3:1.7b 0.236, gemma3:1b 0.194.
