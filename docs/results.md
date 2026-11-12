@@ -213,3 +213,29 @@ The translator prompt still has three JSON examples that the model-alone prompt 
 | qwen3:8b | 0.896 (0.083) | 0.792 (0.181) | 0.889 | 1.000 / 0.875 |
 
 `qwen3:8b` keep on these 144 items is 0.896, next to the published in-context 0.889. Those two runs are not the paired baseline: in-context asks for a letter among choices and allows 1024 tokens. `qwen3:1.7b` keep (0.486) is below its published in-context 0.694. `gemma3:1b` keep is 0.000 with every reply unparsed, below its published in-context 0.333. Structured keep 1.000 and fade 0.875 are unchanged. No-teach reference points remain qwen3:8b 0.312, qwen3:1.7b 0.236, gemma3:1b 0.194.
+
+## Hardened translator, to be filled after the tower run
+
+Not measured yet. The alias list and the self-check are general. They were not written against the fresh split. Resume is the same JSONL. Arms are `llm-keep-<variant>`, `llm-fade-<variant>`, `model-alone` (old prompt), and `model-alone-examples` (the three plain scenes).
+
+```bash
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant baseline
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant mapping
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant selfcheck
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant all
+python -m mooremind.paraphrase_eval --model qwen3:8b --baseline-prompt old --baseline-prompt examples
+```
+
+Repeat for `qwen3:1.7b` and `gemma3:1b`. The default command, with no `--variant`, runs every variant and both prompts.
+
+| model | split | arm | accuracy | json_invalid | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | dropped |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| qwen3:8b | fresh | llm-keep-baseline | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-mapping | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-selfcheck | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-all | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-fade-all | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | model-alone | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | model-alone-examples | — | — | — | — | — | — | — |
+
+Copy the same rows for `dev` and `heldout`, and for the other two models, from `results/paraphrase-<model>.md`. The first tower section above is the unhardened path. `model-alone-examples` sees the same three scenes as the translator. `model-alone` does not, so that comparison can be repeated. A wrong assertion still persists, and `fade` still counts a failed teach as an episode.
