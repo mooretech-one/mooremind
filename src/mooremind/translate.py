@@ -9,6 +9,7 @@ rule-based front end.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -21,6 +22,77 @@ ASSERTION_TYPES = frozenset({*LOCATION_TYPES, *ATTRIBUTE_TYPES, "is_a"})
 QUERY_KINDS = frozenset({"where", "before", "index", "middle", "time", "color"})
 QUALIFIER_KEYS = frozenset({"timeframe", "confidence", "scope", "source"})
 _SLUG = re.compile(r"^[a-z][a-z0-9_]*$")
+
+# Near-miss names only. Direction-reversing words such as "contains" are
+# absent on purpose. Nothing here is copied from a paraphrase item.
+RELATION_ALIASES = {
+    "at": "at",
+    "atop": "on",
+    "belongs_to": "held_by",
+    "color": "color",
+    "colors": "color",
+    "colour": "color",
+    "colours": "color",
+    "held_by": "held_by",
+    "in": "in",
+    "inside": "in",
+    "inside_of": "in",
+    "instance_of": "is_a",
+    "into": "in",
+    "is_a": "is_a",
+    "is_an": "is_a",
+    "is_in": "in",
+    "isa": "is_a",
+    "kind_of": "is_a",
+    "lives_in": "in",
+    "located_in": "in",
+    "material": "material",
+    "materials": "material",
+    "member_of": "is_a",
+    "on": "on",
+    "on_top_of": "on",
+    "onto": "on",
+    "owned_by": "held_by",
+    "possessed_by": "held_by",
+    "shape": "shape",
+    "shapes": "shape",
+    "size": "size",
+    "sizes": "size",
+    "subclass_of": "is_a",
+    "texture": "texture",
+    "textures": "texture",
+    "type_of": "is_a",
+    "was_in": "in",
+}
+QUERY_ALIASES = {
+    "before": "before",
+    "color": "color",
+    "colour": "color",
+    "current": "where",
+    "earlier": "before",
+    "index": "index",
+    "location": "where",
+    "middle": "middle",
+    "midpoint": "middle",
+    "ordinal": "index",
+    "previous": "before",
+    "prior": "before",
+    "time": "time",
+    "timeframe": "time",
+    "when": "time",
+    "where": "where",
+    "where_before": "before",
+    "where_now": "where",
+}
+
+CHECK_PROMPT = """\
+You check a translation against the English. Reply with one JSON object only.
+{"decision":"keep"} if the JSON matches the English.
+{"decision":"drop"} if it should not be stored.
+{"decision":"fix","assertions":[...]} when the task was teach, or
+{"decision":"fix","kind":"...","entity":"..."} when the task was a question.
+Use the same types and lowercase slugs as the proposal. Do not add a note.
+"""
 
 # Three worked examples. Names and sentences are not copied from MooreSense
 # or from the paraphrase files in tests/.
@@ -75,6 +147,10 @@ class Outcome:
     detail: str = ""
     assertions: list[dict[str, object]] = field(default_factory=list)
     query: Query | None = None
+    mapped: list[str] = field(default_factory=list)
+    retried: bool = False
+    checked: str = ""
+    calls: int = 0
 
 
 def _fail(status: str, detail: str) -> Outcome:
@@ -102,20 +178,44 @@ def _qualifiers(value: object) -> dict[str, str] | None:
     return cleaned
 
 
-def _assertion(value: object) -> dict[str, object] | None:
+def _alias_key(value: str) -> str:
+    return value.strip().casefold().replace("-", "_").replace(" ", "_")
+
+
+def _map_token(
+    value: object, table: dict[str, str], *, mapping: bool
+) -> tuple[str | None, str | None]:
+    """Return the canonical name, and a note when the text was rewritten."""
+    if not isinstance(value, str):
+        return None, None
+    if not mapping:
+        if value in table and table[value] == value:
+            return value, None
+        return None, None
+    key = _alias_key(value)
+    if key not in table:
+        return None, None
+    mapped = table[key]
+    note = None if mapped == value else f"{value}->{mapped}"
+    return mapped, note
+
+
+def _assertion(
+    value: object, *, mapping: bool = False
+) -> tuple[dict[str, object] | None, list[str]]:
     if not isinstance(value, dict):
-        return None
+        return None, []
     allowed = {"source", "type", "target", "qualifiers"}
     if set(value) - allowed:
-        return None
+        return None, []
     source = _slug(value.get("source"))
-    relation = value.get("type")
+    relation, relation_note = _map_token(value.get("type"), RELATION_ALIASES, mapping=mapping)
     target = _slug(value.get("target"))
-    if source is None or target is None or relation not in ASSERTION_TYPES:
-        return None
+    if source is None or target is None or relation is None:
+        return None, []
     qualifiers = _qualifiers(value.get("qualifiers"))
     if qualifiers is None:
-        return None
+        return None, []
     fact: dict[str, object] = {
         "qualifiers": qualifiers,
         "source": source,
@@ -123,10 +223,11 @@ def _assertion(value: object) -> dict[str, object] | None:
         "text": "",
         "type": relation,
     }
-    return fact
+    notes = [relation_note] if relation_note else []
+    return fact, notes
 
 
-def parse_teach(raw: str) -> Outcome:
+def parse_teach(raw: str, *, mapping: bool = False) -> Outcome:
     payload = _json_object(raw)
     if isinstance(payload, str):
         return _fail("json_invalid", payload)
@@ -135,24 +236,30 @@ def parse_teach(raw: str) -> Outcome:
     if payload["assertions"] == []:
         return _fail("empty", "assertions list is empty")
     facts: list[dict[str, object]] = []
+    notes: list[str] = []
     for item in payload["assertions"]:
-        fact = _assertion(item)
+        fact, fact_notes = _assertion(item, mapping=mapping)
+        notes.extend(fact_notes)
         if fact is None:
-            return _fail("off_vocabulary", "an assertion was off vocabulary")
+            failed = _fail("off_vocabulary", "an assertion was off vocabulary")
+            failed.mapped = notes
+            return failed
         facts.append(fact)
-    return Outcome(status="ok", assertions=facts)
+    return Outcome(status="ok", assertions=facts, mapped=notes)
 
 
-def parse_question_json(raw: str) -> Outcome:
+def parse_question_json(raw: str, *, mapping: bool = False) -> Outcome:
     payload = _json_object(raw)
     if isinstance(payload, str):
         return _fail("json_invalid", payload)
-    if not isinstance(payload.get("kind"), str) or payload["kind"] not in QUERY_KINDS:
+    kind, kind_note = _map_token(payload.get("kind"), QUERY_ALIASES, mapping=mapping)
+    if kind is None:
         return _fail("off_vocabulary", "query kind is off vocabulary")
     entity = _slug(payload.get("entity"))
     if entity is None:
-        return _fail("off_vocabulary", "query entity is not a slug")
-    kind = str(payload["kind"])
+        failed = _fail("off_vocabulary", "query entity is not a slug")
+        failed.mapped = [kind_note] if kind_note else []
+        return failed
     allowed = {"kind", "entity"}
     index: int | None = None
     timeframe: str | None = None
@@ -172,6 +279,7 @@ def parse_question_json(raw: str) -> Outcome:
         return _fail("off_vocabulary", "query has a missing or extra key")
     return Outcome(
         status="ok",
+        mapped=[kind_note] if kind_note else [],
         query=Query(kind=kind, entity=entity, index=index, timeframe=timeframe),
     )
 
@@ -193,22 +301,56 @@ def _json_object(raw: str) -> dict[str, object] | str:
     return payload
 
 
-class Translator:
-    """Two calls: one for an episode's sentences, one for a question."""
+def env_flag(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip().casefold() not in {"0", "false", "no", "off"}
 
-    def __init__(self, client: ChatClient) -> None:
+
+class Translator:
+    """Episode and question calls, plus optional mapping, retry, and a check."""
+
+    def __init__(
+        self,
+        client: ChatClient,
+        *,
+        mapping: bool = True,
+        self_check: bool = True,
+        retry: bool = True,
+    ) -> None:
         self.client = client
+        self.mapping = mapping
+        self.self_check = self_check
+        self.retry = retry
+        self.calls = 0
 
     def translate_episode(self, sentences: list[str]) -> Outcome:
         numbered = "\n".join(
             f"{index}. {sentence}" for index, sentence in enumerate(sentences, start=1)
         )
-        return self._call("TASK teach\n" + numbered, parse_teach)
+        return self._translate("TASK teach\n" + numbered, parse_teach, "teach")
 
     def translate_question(self, question: str) -> Outcome:
-        return self._call("TASK question\n" + question.strip(), parse_question_json)
+        task = "TASK question\n" + question.strip()
+        return self._translate(task, parse_question_json, "question")
 
-    def _call(self, task: str, parse: Callable[[str], Outcome]) -> Outcome:
+    def _translate(self, task: str, parse: Callable[..., Outcome], mode: str) -> Outcome:
+        outcome = self._once(task, parse)
+        if outcome.status == "json_invalid" and self.retry:
+            retried = self._once(
+                task + "\n\nRejected: " + outcome.detail + "\nReply with one JSON object only.",
+                parse,
+            )
+            retried.retried = True
+            retried.calls = outcome.calls + retried.calls
+            outcome = retried
+        if outcome.status == "ok" and self.self_check:
+            outcome = self._check(task, outcome, mode)
+        return outcome
+
+    def _once(self, task: str, parse: Callable[..., Outcome]) -> Outcome:
+        self.calls += 1
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": with_no_think(task)},
@@ -216,5 +358,101 @@ class Translator:
         try:
             raw = self.client.complete(messages)
         except TransportError as exc:
-            return _fail("transport", f"{exc.kind}: {exc}")
-        return parse(raw)
+            failed = _fail("transport", f"{exc.kind}: {exc}")
+            failed.calls = 1
+            return failed
+        outcome = parse(raw, mapping=self.mapping)
+        outcome.calls = 1
+        return outcome
+
+    def _check(self, task: str, proposal: Outcome, mode: str) -> Outcome:
+        proposed = _proposed_json(proposal, mode)
+        check_task = "TASK check\nEnglish:\n" + task + "\nProposed:\n" + proposed
+        self.calls += 1
+        messages = [
+            {"role": "system", "content": CHECK_PROMPT},
+            {"role": "user", "content": with_no_think(check_task)},
+        ]
+        try:
+            raw = self.client.complete(messages)
+        except TransportError as exc:
+            failed = _fail("transport", f"{exc.kind}: {exc}")
+            failed.calls = proposal.calls + 1
+            failed.mapped = list(proposal.mapped)
+            return failed
+        decision = _decision(raw, mode, mapping=self.mapping)
+        decision.calls = proposal.calls + 1
+        decision.retried = proposal.retried
+        if decision.checked == "keep":
+            proposal.checked = "keep"
+            proposal.calls = decision.calls
+            return proposal
+        if decision.checked == "fix" and decision.status == "ok":
+            decision.mapped = list(proposal.mapped) + list(decision.mapped)
+            return decision
+        if decision.checked == "drop" or decision.status != "ok":
+            dropped = _fail("dropped", decision.detail or "self-check did not keep the proposal")
+            dropped.checked = decision.checked or "drop"
+            dropped.calls = decision.calls
+            dropped.mapped = list(proposal.mapped)
+            dropped.retried = proposal.retried
+            return dropped
+        return decision
+
+
+def _proposed_json(proposal: Outcome, mode: str) -> str:
+    if mode == "teach":
+        body = {"assertions": _public_assertions(proposal.assertions)}
+    else:
+        query = proposal.query
+        kind = "" if query is None else query.kind
+        entity = "" if query is None else query.entity
+        body = {"entity": entity, "kind": kind}
+        if query is not None and query.kind == "index":
+            body["index"] = query.index
+        if query is not None and query.kind == "time":
+            body["timeframe"] = query.timeframe
+    return json.dumps(body)
+
+
+def _public_assertions(facts: list[dict[str, object]]) -> list[dict[str, object]]:
+    shown: list[dict[str, object]] = []
+    for fact in facts:
+        item: dict[str, object] = {
+            "source": fact["source"],
+            "target": fact["target"],
+            "type": fact["type"],
+        }
+        qualifiers = fact.get("qualifiers") or {}
+        if qualifiers:
+            item["qualifiers"] = qualifiers
+        shown.append(item)
+    return shown
+
+
+def _decision(raw: str, mode: str, *, mapping: bool) -> Outcome:
+    payload = _json_object(raw)
+    if isinstance(payload, str):
+        failed = _fail("json_invalid", payload)
+        failed.checked = ""
+        return failed
+    decision = payload.get("decision")
+    if decision not in {"keep", "fix", "drop"}:
+        failed = _fail("off_vocabulary", "decision must be keep, fix, or drop")
+        return failed
+    if decision == "keep":
+        kept = Outcome(status="ok", checked="keep")
+        return kept
+    if decision == "drop":
+        dropped = _fail("dropped", "self-check dropped the proposal")
+        dropped.checked = "drop"
+        return dropped
+    if mode == "teach":
+        if "assertions" not in payload:
+            return _fail("off_vocabulary", "fix is missing assertions")
+        fixed = parse_teach(json.dumps({"assertions": payload["assertions"]}), mapping=mapping)
+    else:
+        query_body = {key: value for key, value in payload.items() if key != "decision"}
+        fixed = parse_question_json(json.dumps(query_body), mapping=mapping)
+    fixed.checked = "fix"
+    return fixed

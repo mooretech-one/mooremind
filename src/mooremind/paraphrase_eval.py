@@ -28,16 +28,24 @@ _FAILURES = (
     "translator_json_invalid",
     "translator_empty",
     "translator_off_vocabulary",
+    "translator_dropped",
     "wrong_query",
     "wrong_assertion",
     "store_or_decay",
     "fallback",
 )
 _STATUS = {
-    "transport": "translator_transport",
-    "json_invalid": "translator_json_invalid",
+    "dropped": "translator_dropped",
     "empty": "translator_empty",
+    "json_invalid": "translator_json_invalid",
     "off_vocabulary": "translator_off_vocabulary",
+    "transport": "translator_transport",
+}
+_VARIANTS = {
+    "baseline": {"mapping": False, "retry": False, "self_check": False},
+    "mapping": {"mapping": True, "retry": False, "self_check": False},
+    "selfcheck": {"mapping": False, "retry": False, "self_check": True},
+    "all": {"mapping": True, "retry": True, "self_check": True},
 }
 
 
@@ -118,10 +126,31 @@ def extract_answer(text: str) -> str:
     return text.strip()
 
 
-def baseline_prompt(sentences: list[str], question: str) -> str:
+def baseline_examples() -> str:
+    """The same three scenes as the translator, in plain question and answer form."""
+    return "\n".join(
+        [
+            "Scene: The kettle is on the stove.",
+            "Question: Where is the kettle?",
+            "Answer: on the stove",
+            "",
+            "Scene: Dot's morning starts in the larder. Dot finishes in the courtyard.",
+            "A pibble is cream. Dot is a pibble.",
+            "Question: What colour is Dot?",
+            "Answer: cream",
+            "",
+            "Scene: Dot's morning starts in the larder. Dot finishes in the courtyard.",
+            "Question: What place was second for Dot?",
+            "Answer: in the courtyard",
+        ]
+    )
+
+
+def baseline_prompt(sentences: list[str], question: str, *, examples: bool = False) -> str:
     """MooreSense free-text shape: the story, the question, an Answer line.
 
-    This prompt does not include the translator's JSON examples.
+    ``examples`` adds the three plain scenes. The old prompt leaves them out
+    so the previous tower numbers can be reproduced.
     """
     parts = [
         "Reply with the short answer.",
@@ -129,6 +158,8 @@ def baseline_prompt(sentences: list[str], question: str) -> str:
         "That line is what gets scored.",
         "",
     ]
+    if examples:
+        parts.extend(["Worked examples:", baseline_examples(), ""])
     for sentence in sentences:
         parts.append(sentence)
     parts.extend(
@@ -144,16 +175,18 @@ def baseline_prompt(sentences: list[str], question: str) -> str:
 
 
 class Baseline:
-    def __init__(self, client: ChatClient) -> None:
+    def __init__(self, client: ChatClient, *, examples: bool = False) -> None:
         self.client = client
+        self.examples = examples
 
     def answer(self, sentences: list[str], question: str) -> str:
+        prompt = baseline_prompt(sentences, question, examples=self.examples)
         messages = [
             {
                 "role": "system",
                 "content": "You answer questions about a small everyday scene.",
             },
-            {"role": "user", "content": "/no_think\n\n" + baseline_prompt(sentences, question)},
+            {"role": "user", "content": "/no_think\n\n" + prompt},
         ]
         try:
             return extract_answer(self.client.complete(messages))
@@ -238,18 +271,34 @@ def _run_baseline(baseline: Baseline, story: Any, upto: int) -> str:
         return f"[transport] {exc}"
 
 
+def _store_arms(client: ChatClient, variants: tuple[str, ...]) -> list[tuple[str, LlmMooreMind]]:
+    arms: list[tuple[str, LlmMooreMind]] = []
+    for name in variants:
+        flags = _VARIANTS[name]
+        for label, cls in (("keep", LlmKeepLearner), ("fade", LlmFadeLearner)):
+            arms.append((f"llm-{label}-{name}", cls(client=client, **flags)))
+    return arms
+
+
 def evaluate(
     client: ChatClient,
     out_path: Path,
     model: str,
     stories: list[tuple[str, Any, int, Any]] | None = None,
+    *,
+    variants: tuple[str, ...] = ("baseline", "mapping", "selfcheck", "all"),
+    baselines: tuple[str, ...] = ("old", "examples"),
 ) -> dict[str, Any]:
-    """Score keep, fade, and the model alone. Resume from ``out_path``."""
+    """Score each translator variant and both model-alone prompts.
+
+    Resume from ``out_path``. The arm name is part of the resume key.
+    """
     done = _load_done(out_path)
-    keep = LlmKeepLearner(client=client)
-    fade = LlmFadeLearner(client=client)
-    baseline = Baseline(client)
-    arms = (("llm-keep", keep), ("llm-fade", fade))
+    arms = _store_arms(client, variants)
+    alone = {
+        "model-alone": Baseline(client, examples=False),
+        "model-alone-examples": Baseline(client, examples=True),
+    }
     for split, story, index, gold_of in stories if stories is not None else _stories():
         gold = gold_of(story.beats, index)
         for arm, learner in arms:
@@ -274,12 +323,18 @@ def evaluate(
             _append(out_path, row)
             done[key] = row
             print(f"{arm} {split} {story.id}#{index} {'ok' if correct else label}", flush=True)
-        key = _key(model, "model-alone", split, story.id, index)
-        if key not in done:
+        for arm, baseline in alone.items():
+            if arm == "model-alone" and "old" not in baselines:
+                continue
+            if arm == "model-alone-examples" and "examples" not in baselines:
+                continue
+            key = _key(model, arm, split, story.id, index)
+            if key in done:
+                continue
             reply = _run_baseline(baseline, story, index)
             correct = _norm(reply) == _norm(gold)
             row = {
-                "arm": "model-alone",
+                "arm": arm,
                 "correct": correct,
                 "failure": None if correct else "baseline_miss",
                 "gold": gold,
@@ -294,7 +349,7 @@ def evaluate(
             _append(out_path, row)
             done[key] = row
             mark = "ok" if correct else "miss"
-            print(f"model-alone {split} {story.id}#{index} {mark}", flush=True)
+            print(f"{arm} {split} {story.id}#{index} {mark}", flush=True)
     summary = summarize(list(done.values()), model)
     summary_path = out_path.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -361,9 +416,11 @@ def render_markdown(summary: dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "| split | arm | transport | json_invalid | empty | off_vocabulary | "
-        "wrong_query | wrong_assertion | store_or_decay | fallback | baseline_miss |"
+        "wrong_query | wrong_assertion | store_or_decay | fallback | dropped | baseline_miss |"
     )
-    lines.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+    lines.append(
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    )
     keys = (
         "translator_transport",
         "translator_json_invalid",
@@ -373,6 +430,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         "wrong_assertion",
         "store_or_decay",
         "fallback",
+        "translator_dropped",
         "baseline_miss",
     )
     for split, arms in summary["splits"].items():
@@ -402,7 +460,23 @@ def main(argv: list[str] | None = None) -> int:
         help="JSONL path. Default results/paraphrase-<model>.jsonl",
     )
     parser.add_argument("--restart", action="store_true", help="Delete the JSONL and start over")
+    parser.add_argument(
+        "--variant",
+        action="append",
+        choices=tuple(_VARIANTS),
+        dest="variants",
+        help="Repeat to select translator variants. Default: baseline, mapping, selfcheck, all.",
+    )
+    parser.add_argument(
+        "--baseline-prompt",
+        action="append",
+        choices=("old", "examples"),
+        dest="baselines",
+        help="Repeat to select model-alone prompts. Default: both.",
+    )
     args = parser.parse_args(argv)
+    variants = tuple(args.variants or _VARIANTS)
+    baselines = tuple(args.baselines or ("old", "examples"))
     settings = settings_from_env()
     if args.base_url:
         settings = type(settings)(
@@ -426,7 +500,7 @@ def main(argv: list[str] | None = None) -> int:
     out = args.out or (root / "results" / f"paraphrase-{_slug(args.model)}.jsonl")
     if args.restart and out.is_file():
         out.unlink()
-    evaluate(UrllibChat(settings), out, args.model)
+    evaluate(UrllibChat(settings), out, args.model, variants=variants, baselines=baselines)
     return 0
 
 

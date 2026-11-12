@@ -114,7 +114,7 @@ python -m mooremind.paraphrase_eval --model qwen3:1.7b
 python -m mooremind.paraphrase_eval --model qwen3:8b
 ```
 
-Each command writes `results/paraphrase-<model>.jsonl`, a `.summary.json`, and a `.md` table. Optional: `MOOREMIND_LLM_BASE_URL` (default `http://localhost:11434/v1`), `MOOREMIND_LLM_API_KEY`, `MOOREMIND_LLM_TIMEOUT`, `MOOREMIND_LLM_SEED`.
+Each command writes `results/paraphrase-<model>.jsonl`, a `.summary.json`, and a `.md` table. The default run scores four translator variants for keep and for fade (`baseline`, `mapping`, `selfcheck`, `all`) and both model-alone prompts (`model-alone` is the old prompt, `model-alone-examples` has the three plain scenes). Repeat `--variant` and `--baseline-prompt` to run a subset. A re-run resumes. Optional environment: `MOOREMIND_LLM_BASE_URL` (default `http://localhost:11434/v1`), `MOOREMIND_LLM_API_KEY`, `MOOREMIND_LLM_TIMEOUT`, `MOOREMIND_LLM_SEED`. For the external learner, `MOOREMIND_LLM_MAP`, `MOOREMIND_LLM_SELF_CHECK`, and `MOOREMIND_LLM_RETRY` default on. Set them to `0` to reproduce the first tower path.
 
 The 144 public MooreSense learn items, through the external learner. Filter to `category == learn` first, as in the section above. Point `--learner` at `mooremind.learner:LlmKeepLearner` or `LlmFadeLearner`. The class is constructed with no arguments, so the model comes from the environment.
 

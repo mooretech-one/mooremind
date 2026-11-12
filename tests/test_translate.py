@@ -94,7 +94,7 @@ def test_learner_uses_only_text_and_does_not_guess_past_a_bad_reply():
         json.dumps({"assertions": [{"source": "nim", "type": "in", "target": "loft"}]}),
         json.dumps({"kind": "where", "entity": "nim"}),
     )
-    learner = LlmKeepLearner(client=client)
+    learner = LlmKeepLearner(client=client, mapping=False, self_check=False, retry=False)
     learner.teach([_Sentence("Nim is in the loft.")])
     item = _Question(
         "Where is Nim?",
@@ -102,7 +102,12 @@ def test_learner_uses_only_text_and_does_not_guess_past_a_bad_reply():
     )
     assert learner.answer(item) == "B"
     assert all("in the cellar" not in message for message in client.seen)
-    bad = LlmKeepLearner(client=_Script("this is not json", "also not json"))
+    bad = LlmKeepLearner(
+        client=_Script("this is not json", "also not json"),
+        mapping=False,
+        self_check=False,
+        retry=False,
+    )
     bad.teach([_Sentence("Nim is in the loft.")])
     assert bad.answer(_Question("Where is Nim?", [Choice("A", "in the loft")])) == FALLBACK
     assert bad.translator_failures["json_invalid"] == 2
@@ -113,7 +118,7 @@ def test_off_vocabulary_teaches_nothing():
         '{"assertions":[{"source":"nim","type":"loves","target":"loft"}]}',
         '{"kind":"where","entity":"nim"}',
     )
-    learner = LlmKeepLearner(client=client)
+    learner = LlmKeepLearner(client=client, mapping=False, self_check=False, retry=False)
     learner.teach([_Sentence("Nim is in the loft.")])
     assert learner.accepted_facts == []
     assert learner.teach_outcomes[-1].status == "off_vocabulary"
@@ -124,10 +129,84 @@ def test_a_timeout_is_a_transport_failure_not_a_crash():
         def complete(self, messages: list[dict[str, str]]) -> str:
             raise TransportError("timeout", "slow")
 
-    learner = LlmKeepLearner(client=_Slow())
+    learner = LlmKeepLearner(client=_Slow(), mapping=False, self_check=False, retry=False)
     learner.teach([_Sentence("Nim is in the loft.")])
     assert learner.teach_outcomes[-1].status == "transport"
     assert learner.answer(_Question("Where is Nim?", None)) == FALLBACK
+
+
+def test_mapping_rewrites_a_listed_alias_and_rejects_the_rest():
+    raw = '{"assertions":[{"source":"kettle","type":"inside","target":"cup"}]}'
+    mapped = parse_teach(raw, mapping=True)
+    assert mapped.status == "ok"
+    assert mapped.assertions[0]["type"] == "in"
+    assert mapped.mapped == ["inside->in"]
+    assert parse_teach(raw, mapping=False).status == "off_vocabulary"
+    colour = parse_question_json('{"kind":"colour","entity":"dot"}', mapping=True)
+    assert colour.status == "ok"
+    assert colour.query is not None and colour.query.kind == "color"
+    assert parse_question_json('{"kind":"colour","entity":"dot"}').status == "off_vocabulary"
+
+
+class _Check:
+    def __init__(self, replies: list[str]) -> None:
+        self.replies = list(replies)
+        self.seen: list[str] = []
+
+    def complete(self, messages: list[dict[str, str]]) -> str:
+        self.seen.append(messages[-1]["content"])
+        return self.replies.pop(0)
+
+
+def test_self_check_keep_fix_and_drop():
+    keep = _Check(
+        [
+            '{"assertions":[{"source":"kettle","type":"on","target":"stove"}]}',
+            '{"decision":"keep"}',
+        ]
+    )
+    learner = LlmKeepLearner(client=keep, mapping=False, self_check=True, retry=False)
+    learner.teach([_Sentence("The kettle is on the stove.")])
+    assert learner.accepted_facts == [("kettle", "on", "stove")]
+    assert learner.teach_outcomes[-1].checked == "keep"
+    assert learner.translator.calls == 2
+
+    fix = _Check(
+        [
+            '{"assertions":[{"source":"kettle","type":"on","target":"floor"}]}',
+            '{"decision":"fix","assertions":[{"source":"kettle","type":"on","target":"stove"}]}',
+        ]
+    )
+    fixed = LlmKeepLearner(client=fix, mapping=False, self_check=True, retry=False)
+    fixed.teach([_Sentence("The kettle is on the stove.")])
+    assert fixed.accepted_facts == [("kettle", "on", "stove")]
+    assert fixed.teach_outcomes[-1].checked == "fix"
+
+    drop = _Check(
+        [
+            '{"assertions":[{"source":"kettle","type":"on","target":"stove"}]}',
+            '{"decision":"drop"}',
+        ]
+    )
+    dropped = LlmKeepLearner(client=drop, mapping=False, self_check=True, retry=False)
+    dropped.teach([_Sentence("The kettle is on the stove.")])
+    assert dropped.accepted_facts == []
+    assert dropped.teach_outcomes[-1].status == "dropped"
+
+
+def test_one_retry_feeds_the_validator_error_back():
+    client = _Check(
+        [
+            "not json",
+            '{"assertions":[{"source":"kettle","type":"on","target":"stove"}]}',
+        ]
+    )
+    learner = LlmKeepLearner(client=client, mapping=False, self_check=False, retry=True)
+    learner.teach([_Sentence("The kettle is on the stove.")])
+    assert learner.accepted_facts == [("kettle", "on", "stove")]
+    assert learner.teach_outcomes[-1].retried is True
+    assert "Rejected:" in client.seen[1]
+    assert learner.translator.calls == 2
 
 
 def test_urllib_client_posts_think_off_and_reads_content():

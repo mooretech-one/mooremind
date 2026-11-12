@@ -22,7 +22,7 @@ from mooremind.english import Memory, parse_question, read_sentence
 from mooremind.llm_http import ChatClient, UrllibChat, settings_from_env
 from mooremind.query import Query, interpret
 from mooremind.store import ThoughtStore
-from mooremind.translate import Outcome, Translator
+from mooremind.translate import Outcome, Translator, env_flag
 from mooremind.weights import FADE, KEEP, WeightPolicy
 
 FALLBACK = "I don't know"
@@ -332,10 +332,22 @@ class LlmMooreMind(MooreMind):
         policy: WeightPolicy | None = None,
         preset_name: str | None = None,
         client: ChatClient | None = None,
+        *,
+        mapping: bool | None = None,
+        self_check: bool | None = None,
+        retry: bool | None = None,
     ) -> None:
         super().__init__(policy=policy, preset_name=preset_name)
         self.client = client if client is not None else UrllibChat(settings_from_env())
-        self.translator = Translator(self.client)
+        use_map = env_flag("MOOREMIND_LLM_MAP", True) if mapping is None else mapping
+        use_check = env_flag("MOOREMIND_LLM_SELF_CHECK", True) if self_check is None else self_check
+        use_retry = env_flag("MOOREMIND_LLM_RETRY", True) if retry is None else retry
+        self.translator = Translator(
+            self.client,
+            mapping=use_map,
+            self_check=use_check,
+            retry=use_retry,
+        )
         self.teach_outcomes: list[Outcome] = []
         self.query_outcome: Outcome | None = None
         self.accepted_facts: list[tuple[str, str, str]] = []

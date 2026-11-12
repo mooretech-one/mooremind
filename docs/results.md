@@ -147,3 +147,29 @@ Failure counts for the store arms, same runs. `baseline_miss` is only for `model
 | fresh | model-alone | — | — | — | — | — | — | — | — | — |
 
 One label per miss, in this order: transport, JSON invalid, empty assertions, off-vocabulary, wrong query, wrong assertion, store/decay, fallback. A correct row is not labelled.
+
+## Hardened translator, to be filled after the tower run
+
+Not measured yet. The alias list and the self-check are general. They were not written against the fresh split. Resume is the same JSONL. Arms are `llm-keep-<variant>`, `llm-fade-<variant>`, `model-alone` (old prompt), and `model-alone-examples` (the three plain scenes).
+
+```bash
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant baseline
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant mapping
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant selfcheck
+python -m mooremind.paraphrase_eval --model qwen3:8b --variant all
+python -m mooremind.paraphrase_eval --model qwen3:8b --baseline-prompt old --baseline-prompt examples
+```
+
+Repeat for `qwen3:1.7b` and `gemma3:1b`. The default command, with no `--variant`, runs every variant and both prompts.
+
+| model | split | arm | accuracy | json_invalid | off_vocabulary | wrong_query | wrong_assertion | store_or_decay | dropped |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| qwen3:8b | fresh | llm-keep-baseline | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-mapping | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-selfcheck | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-keep-all | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | llm-fade-all | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | model-alone | — | — | — | — | — | — | — |
+| qwen3:8b | fresh | model-alone-examples | — | — | — | — | — | — | — |
+
+Copy the same rows for `dev` and `heldout`, and for the other two models, from `results/paraphrase-<model>.md`. The first tower section above is the unhardened path. `model-alone-examples` sees the same three scenes as the translator. `model-alone` does not, so that comparison can be repeated. A wrong assertion still persists, and `fade` still counts a failed teach as an episode.
